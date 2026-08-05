@@ -3,7 +3,7 @@
 # 部署路径: ~/dotfiles/justfile
 # 所属包: root（非 stow 包）
 # 功能: 格式化/lint/验证/更新/清理，just verify 是 commit 前必跑
-# 使用: just [fix|lint|verify|doctor|update-all|clean]
+# 使用: just [fix|lint|verify|doctor|inventory|docs|audit|update-all|clean]
 # ==========================================
 
 # ── AI 开发 ──
@@ -28,14 +28,17 @@ lint:
     @echo "── Python ──"
     @if ! command -v ruff >/dev/null 2>&1; then echo "SKIP: ruff 未安装"; elif RUFF_NO_CACHE=1 ruff check --show-files . 2>/dev/null | grep -q .; then RUFF_NO_CACHE=1 ruff check .; else echo "SKIP: 无 Python 文件"; fi
     @echo "── Lua ──"
-    @if command -v stylua >/dev/null 2>&1; then stylua --check nvim/.config/nvim/lua/; else echo "SKIP: stylua 未安装"; fi
+    @if command -v stylua >/dev/null 2>&1; then \
+        lua_files=$(git diff --name-only --diff-filter=ACMRTUXB HEAD -- '*.lua' | grep '^nvim/.*\.lua$' || true); \
+        if [ -n "$lua_files" ]; then stylua --check $lua_files; else echo "SKIP: 无变更 Lua 文件"; fi; \
+    else echo "SKIP: stylua 未安装"; fi
     @echo "── Go ──"
-    @if ! find . -type f -name '*.go' -print -quit | grep -q .; then echo "SKIP: 无 Go 文件"; elif command -v golangci-lint >/dev/null 2>&1; then golangci-lint run ./...; else echo "SKIP: golangci-lint 未安装"; fi
+    @go_mods=$(find . -type f -name 'go.mod' -not -path './.git/*' -print); if [ -z "$go_mods" ]; then echo "SKIP: 无 Go 模块"; elif command -v golangci-lint >/dev/null 2>&1; then for mod in $go_mods; do dir=${mod%/go.mod}; (cd "$dir" && golangci-lint run ./...); done; else echo "SKIP: golangci-lint 未安装"; fi
     @echo "── zsh syntax ──"
     @if command -v zsh >/dev/null 2>&1; then zsh -n zsh/.zshenv zsh/.zprofile zsh/.zshrc && echo "✓ zsh entry files OK"; else echo "SKIP: zsh 未安装"; fi
-    @if command -v zsh >/dev/null 2>&1; then for f in zsh/.zsh/*.zsh; do zsh -n "$f" || exit $$?; echo "✓ $f OK"; done; else echo "SKIP: zsh 未安装"; fi
+    @if command -v zsh >/dev/null 2>&1; then for f in zsh/.zsh/*.zsh; do zsh -n "$f" || exit $?; echo "✓ $f OK"; done; else echo "SKIP: zsh 未安装"; fi
     @echo "── bash syntax ──"
-    @if command -v bash >/dev/null 2>&1; then bash -n configure && echo "✓ configure OK"; else echo "SKIP: bash 未安装"; fi
+    @if command -v bash >/dev/null 2>&1; then bash -n configure scripts/dotfiles scripts/config-audit scripts/sync-obsidian scripts/system-inventory scripts/hermes-audit && echo "✓ control plane scripts OK"; else echo "SKIP: bash 未安装"; fi
 
 # ── 环境维护 ──
 
@@ -49,28 +52,21 @@ update-all:
     @echo "✓ 全部更新完成"
 
 clean:
-    @echo "── Homebrew ──"
-    brew autoremove && brew cleanup --prune=30
-    @echo "── mise ──"
-    mise cache clear
-    @echo "── Docker ──"
-    docker system prune 2>/dev/null || true
-    @echo "✓ 清理完成"
+    @./scripts/dotfiles cleanup
 
 # ── 深度缓存清理（释放磁盘空间）──
 
 cache-clean:
-    @echo "── Homebrew ──"
-    brew cleanup --prune=all
-    @echo "── npm ──"
-    @npm cache clean --force 2>/dev/null || true
-    @echo "── uv ──"
-    @uv cache clean 2>/dev/null || true
-    @echo "── pip ──"
-    @pip cache purge 2>/dev/null || true
-    @echo "── mise ──"
-    @mise cache clear 2>/dev/null || true
-    @echo "✓ 缓存已清理"
+    @./scripts/dotfiles cleanup
+
+inventory:
+    @./scripts/dotfiles inventory
+
+docs:
+    @./scripts/dotfiles docs
+
+audit:
+    @./scripts/dotfiles audit
 
 doctor:
     @echo "── 系统 ──"
@@ -89,7 +85,11 @@ doctor:
     @mise ls 2>/dev/null
     @echo "── Docker ──"
     @docker --version 2>/dev/null || echo "(未安装)"
-    @colima status 2>/dev/null || echo "colima: 未运行"
+    @if command -v docker >/dev/null 2>&1; then \
+        context=$(docker context show 2>/dev/null || true); \
+        [ "$context" = "orbstack" ] && echo "OrbStack context: OK" || echo "Docker context: ${context:-unknown}"; \
+    else echo "Docker CLI: 未安装"; fi
+    @if command -v orbctl >/dev/null 2>&1; then orbctl status 2>/dev/null | head -20; else echo "OrbStack: 未安装"; fi
 
 # ── 验证 ──
 
@@ -99,6 +99,9 @@ verify:
     @echo ""
     @echo "── dotfiles symlink ──"
     @./configure doctor
+    @echo "── system control plane ──"
+    @./scripts/dotfiles doctor
+    @CONFIG_AUDIT_STRICT=1 ./scripts/dotfiles config
     @echo ""
     @echo "── Homebrew ──"
     @if command -v brew >/dev/null 2>&1; then HOMEBREW_NO_AUTO_UPDATE=1 brew bundle check --no-upgrade --file brew/.Brewfile; else echo "✗ brew 未安装" >&2; exit 1; fi
@@ -146,3 +149,18 @@ status:
     @echo ""
     @echo "── 未暂存变更 ──"
     @git diff --stat
+
+# ── 自动审查 ──
+
+# 立即对项目跑静态审查: just review [项目目录]
+review target=".":
+    @if [ ! -f "$HOME/.hermes/scripts/auto-review.py" ]; then echo "✗ auto-review.py 未部署（cd ~/dotfiles && ./configure link）" >&2; exit 1; fi
+    @python3 "$HOME/.hermes/scripts/auto-review.py" {{target}}
+
+# 每日全量自检（6维度）: just self-audit
+self-audit:
+    @bash "$HOME/.hermes/scripts/daily-self-audit.sh"
+
+# 给项目装pre-commit钩子: just install-hooks ~/project
+install-hooks target:
+    @bash "$HOME/.hermes/scripts/install-hooks.sh" {{target}}

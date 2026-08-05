@@ -1,0 +1,35 @@
+# id	scope	path	owner	status	sensitivity	action
+dotfiles-link	managed	.dotfiles	dotfiles	active	none	must point to $HOME/dotfiles
+brewfile	managed	.Brewfile	brew	active	none	stow-managed
+git-config	managed	.gitconfig	git	active	none	stow-managed
+shell-env	managed	.zshenv	zsh	active	none	stow-managed
+shell-profile	managed	.zprofile	zsh	active	none	stow-managed
+shell-config	managed	.zshrc	zsh	active	none	stow-managed
+nvim-config	managed	.config/nvim	nvim	active	none	stow-managed
+opencode-config	managed	.config/opencode/opencode.jsonc	opencode	active	none	stow-managed
+local-control-plane	managed	.local/bin/dotfiles	local-bin	active	none	stow-managed
+excalidraw-mcp	managed	.local/bin/excalidraw-mcp	local-bin	active	none	stow-managed PATH wrapper for OpenCode MCP
+hermes-home	runtime	.hermes	hermes	active	secret	audit-only; never copy to dotfiles
+hermes-launchagents	runtime	Library/LaunchAgents/ai.hermes.gateway-*.plist	launchd	disabled	secret	must remain absent; Hermes Studio owns profile lifecycle; restore only through an explicit service policy
+hermes-migration-backups	legacy	Archives/dotfiles-legacy/20260805/hermes-migration-*	hermes	archived	secret	recoverable runtime snapshot; never sync into dotfiles or Obsidian
+hermes-legacy-runtime	legacy	.hermes-web-ui/desktop-runtime/hermes/0.19.0	hermes	archived	none	not a Hermes gateway; currently referenced by an unrelated project process; remove only after lsof confirms zero users
+orbstack-runtime	runtime	.orbstack	orbstack	active	none	audit-only; OrbStack owns this state
+codex-runtime	runtime	.codex	codex	review	secret	audit-only; keep auth/cache out of dotfiles
+claude-runtime	runtime	.claude	claude	review	secret	audit-only; keep cache/session state out of dotfiles
+aider-config	runtime	.aider.conf.yml	aider	review	secret	compare with Hermes workflow before keeping; migrate key to Keychain
+external-dev-cli	managed	.local/bin/dev	local-bin	active	none	stow-managed compatibility entry; runtime actions remain explicit
+legacy-dev-backup	runtime	.local/bin/dev.legacy-*	legacy	review	none	recoverable pre-Stow copy; remove only after verification
+home-bin-helpers	runtime	bin/*	legacy	review	none	compatibility wrappers only; route mutations through dotfiles
+local-cli-surface	runtime	.local/bin/*	legacy	review	none	Hermes-generated launchers and local tools; audit before adopting
+legacy-colima-home	legacy	Archives/dotfiles-legacy/20260805/colima-home	colima	archived	none	quarantined; delete only after explicit approval
+legacy-colima-config	legacy	Archives/dotfiles-legacy/20260805/colima-config	colima	archived	none	quarantined; delete only after explicit approval
+legacy-root-compose	legacy	docker-compose-ai.yml	docker	legacy	none	use dotfiles/docker/docker-compose-ai.yml
+legacy-root-litellm	legacy	litellm_config.yaml	litellm	legacy	none	use dotfiles/docker/litellm_config.yaml
+legacy-root-go-mod	legacy	go.mod	go-workspace	legacy	none	move into a named project before cleanup
+legacy-root-go-sum	legacy	go.sum	go-workspace	legacy	none	move with the matching Go project
+legacy-root-main-go	legacy	main.go	go-workspace	legacy	none	move into a named project before cleanup
+legacy-root-test-go	legacy	Archives/dotfiles-legacy/20260805/test.go	go-workspace	archived	none	quarantined scratch file; restore only for review
+legacy-root-test-py	legacy	Archives/dotfiles-legacy/20260805/test.py	python-workspace	archived	none	quarantined scratch file; restore only for review
+legacy-system-plan	legacy	Archives/dotfiles-legacy/20260805/系统配置优化方案.md	documentation	archived	none	migrated to Obsidian; retained for historical reference
+obsidian-vault	documentation	Documents/Obsidian Vault	documentation	active	none	generated system pages only under 00-系统配置
+auto-review-scripts	managed	.hermes/scripts	auto-review	active	none	stow-managed

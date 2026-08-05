@@ -14,11 +14,13 @@ PACKAGES=(
   zsh p10k zim git npm
   ghostty yazi btop fastfetch lazygit pip
   mise nvim brew opencode zellij
-  gh claude prox docker pentest
+  gh claude prox docker pentest local-bin auto-review
 )
 STOW_ARGS=(
   --ignore='(^|/)AGENTS\.md$'
   --ignore='^\.claude/(CLAUDE\.md|settings\.json)$'
+  --ignore='^\.claude/hud/cache(/|$)'
+  --ignore='^\.claude\.json$'
   --ignore='^\.config/opencode/oh-my-openagent\.json$'
 )
 
@@ -37,6 +39,24 @@ check_symlinks() {
       errors=$((errors + 1))
     fi
   done
+  return $errors
+}
+
+check_source_symlinks() {
+  local errors=0 link target
+  while IFS= read -r link; do
+    target=$(readlink "$link" 2>/dev/null || true)
+    if [ -e "$link" ]; then
+      echo "  ✓ source ${link#$DOTFILES_DIR/}"
+    else
+      echo "  ✗ source ${link#$DOTFILES_DIR/}  (broken → $target)"
+      errors=$((errors + 1))
+    fi
+  done < <(
+    for package in "${PACKAGES[@]}"; do
+      find "$DOTFILES_DIR/$package" -type l -not -path '*/node_modules/*' -print 2>/dev/null
+    done | sort
+  )
   return $errors
 }
 
@@ -71,6 +91,10 @@ case "$cmd" in
     ;;
   doctor)
     echo "=== doctor: 检查 symlink 健康状态 ==="
+    if ! check_source_symlinks; then
+      echo "✗ dotfiles 源目录存在断链，先修复后再部署" >&2
+      exit 1
+    fi
     if ! stow --simulate "${STOW_ARGS[@]}" "${PACKAGES[@]}" >/dev/null 2>&1; then
       echo "✗ Stow 部署模拟失败（存在文件冲突或无效包）" >&2
       exit 1
@@ -79,6 +103,7 @@ case "$cmd" in
       find "$HOME" -maxdepth 1 -type l -lname "dotfiles/*" 2>/dev/null
       find "$HOME/.config" -maxdepth 2 -type l -lname "../../dotfiles/*" 2>/dev/null
       find "$HOME/.config" -maxdepth 2 -type l -lname "../../../dotfiles/*" 2>/dev/null
+      find "$HOME/.local/bin" -maxdepth 1 -type l -lname "../../dotfiles/*" 2>/dev/null
     } | sort -u | check_symlinks
     rc=$?
     echo ""
@@ -104,6 +129,7 @@ case "$cmd" in
       find "$HOME" -maxdepth 1 -type l -lname "dotfiles/*" 2>/dev/null
       find "$HOME/.config" -maxdepth 2 -type l -lname "../../dotfiles/*" 2>/dev/null
       find "$HOME/.config" -maxdepth 2 -type l -lname "../../../dotfiles/*" 2>/dev/null
+      find "$HOME/.local/bin" -maxdepth 1 -type l -lname "../../dotfiles/*" 2>/dev/null
     } | sort -u | check_symlinks
     ;;
   *)

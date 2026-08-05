@@ -1,0 +1,43 @@
+# id	category	source	status	command	config
+homebrew	package-manager	Homebrew	active	brew	$HOME/.Brewfile
+mise	runtime	mise	active	mise	$HOME/.config/mise/config.toml
+uv	python-tool	uv-installer	active	uv	$HOME/.config/uv
+node	node-runtime	mise	active	node	$HOME/.config/mise/config.toml
+python	python-runtime	mise	active	python3	$HOME/.config/mise/config.toml
+python-project-deps	python-dependencies	uv	active	uv add	project/pyproject.toml + uv.lock
+python-cli-tools	python-cli	uv	active	uv tool	$HOME/.local/share/uv/tools
+go	go-runtime	Homebrew	active	go	$HOME/go
+rust	rust-runtime	rustup	active	rustc	$HOME/.cargo
+neovim	editor	Homebrew	active	nvim	$HOME/.config/nvim
+ghostty	terminal	Homebrew	active	ghostty	$HOME/.config/ghostty
+zellij	multiplexer	Homebrew	active	zellij	$HOME/.config/zellij
+fzf	search	Homebrew	active	fzf	$HOME/.zsh
+ripgrep	search	Homebrew	active	rg	$HOME/.zsh
+yazi	file-manager	Homebrew	active	yazi	$HOME/.config/yazi
+pnpm	node-package-manager	Corepack/review	review	pnpm	$HOME/.local/share/pnpm
+bun	node-runtime	installer/review	review	bun	$HOME/.bun
+starship	shell-prompt	Homebrew/review	review	starship	$HOME/.config/starship.toml
+atuin	shell-history	Homebrew/review	review	atuin	$HOME/.config/atuin
+difftastic	diff-tool	Homebrew/review	review	difft	project-level only
+lazydocker	container-ui	Homebrew/review	review	lazydocker	OrbStack review
+posting	api-client	Homebrew/review	review	posting	project/API review
+watchexec	file-watcher	Homebrew/review	review	watchexec	project-level only
+onyx	mac-maintenance	application/review	review	onyx	Applications/OnyX
+daisydisk	disk-analysis	application/review	review	daisydisk	Applications/DaisyDisk
+btop	monitor	Homebrew	active	btop	$HOME/.config/btop
+lazygit	git-ui	Homebrew	active	lazygit	$HOME/.config/lazygit
+gh	git-cli	Homebrew	active	gh	$HOME/.config/gh
+direnv	env	Homebrew	active	direnv	$HOME/.config/direnv
+just	task-runner	Homebrew	active	just	$HOME/dotfiles/justfile
+gofumpt	go-formatter	Homebrew	review	gofumpt	$HOME/dotfiles/justfile
+golangci-lint	go-linter	Homebrew	review	golangci-lint	$HOME/dotfiles/justfile
+shfmt	shell-formatter	Homebrew	review	shfmt	$HOME/dotfiles/justfile
+orbstack	container-runtime	OrbStack	active	orbctl	$HOME/.orbstack
+ollama	local-models	Homebrew	active	ollama	$HOME/.ollama
+hermes-studio	ai-orchestrator	application	active	hermes-studio	$HOME/.hermes
+codex	ai-worker	Homebrew	active	codex	$HOME/.codex
+opencode	ai-worker	Homebrew	active	opencode	$HOME/.config/opencode
+excalidraw-mcp	mcp-server	npm/manual	active	excalidraw-mcp	$HOME/.local/bin/excalidraw-mcp
+obsidian	knowledge-base	application	active	obsidian	$HOME/Documents/Obsidian Vault
+raycast	launcher	application	active	raycast	$HOME/Library/Application Support/Raycast
+auto-review	code-review	dotfiles/auto-review	active	auto-review.py	$HOME/.hermes/scripts

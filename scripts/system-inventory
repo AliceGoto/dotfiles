@@ -1,0 +1,174 @@
+#!/usr/bin/env bash
+
+set -u
+
+ROOT="${DOTFILES_ROOT:-$HOME/dotfiles}"
+HOME_LABEL='$HOME'
+
+redact_path() {
+    local path="$1"
+    case "$path" in
+        "$HOME") printf '%s' "$HOME_LABEL" ;;
+        "$HOME"/*) printf '%s/%s' "$HOME_LABEL" "${path#"$HOME/"}" ;;
+        *) printf '%s' "$path" ;;
+    esac
+}
+
+section() {
+    printf '\n## %s\n\n' "$1"
+}
+
+print_version() {
+    local name="$1"
+    shift
+    if ! command -v "$name" >/dev/null 2>&1; then
+        printf -- '- `%s`: missing\n' "$name"
+        return
+    fi
+    printf -- '- `%s`: `%s`\n' "$name" \
+        "$(command "$name" "$@" 2>&1 | head -1)"
+}
+
+print_size() {
+    local path="$1"
+    [ -e "$path" ] || return 0
+    printf -- '- `%s`: %s\n' "${path#$HOME/}" "$(du -sh "$path" 2>/dev/null | awk '{print $1}')"
+}
+
+print_symlinks() {
+    find "$HOME" -maxdepth 2 -type l -print 2>/dev/null | while IFS= read -r link; do
+        target=$(readlink "$link" 2>/dev/null || true)
+        case "$target" in
+            *dotfiles*|*\.config/*) printf -- '- `%s` -> `%s`\n' "${link#$HOME/}" "$(redact_path "$target")" ;;
+        esac
+    done
+}
+
+print_launchd() {
+    if ! command -v launchctl >/dev/null 2>&1; then
+        printf '%s\n' '- launchd: unavailable (non-macOS)' 
+        return
+    fi
+    find "$HOME/Library/LaunchAgents" -maxdepth 1 -type f -name '*.plist' -print 2>/dev/null \
+        | sed 's#.*/##' | sort | while IFS= read -r plist; do
+        label="${plist%.plist}"
+        state=$(launchctl print "gui/$UID/$label" 2>/dev/null \
+            | awk -F'= ' '/^[[:space:]]*state =/{print $2; exit}')
+        printf -- '- `%s`: %s\n' "$label" "${state:-not-loaded}"
+    done
+}
+
+print_sensitive_paths() {
+    find "$HOME" -maxdepth 5 -type f \( \
+        -name '.env' -o \( -name '.env.*' ! -name '.env.example' \) \
+        -o -iname 'auth.json' -o -iname 'credentials.toml' -o -iname 'hosts.yml' \
+        -o -iname 'id_*' -o -iname '*.key' -o -iname '*.pem' \
+    \) -print 2>/dev/null | sort | sed "s#^$HOME#$HOME_LABEL#" | head -240
+}
+
+printf '# System Inventory\n\n'
+printf -- '- generated_at: `%s`\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+printf -- '- dotfiles_root: `%s`\n' "$(redact_path "$ROOT")"
+
+section 'Operating system'
+if command -v sw_vers >/dev/null 2>&1; then
+    sw_vers | sed 's/^/- /'
+else
+    printf -- '- kernel: `%s`\n' "$(uname -a)"
+fi
+if command -v sysctl >/dev/null 2>&1; then
+    printf -- '- model: `%s`\n' "$(sysctl -n hw.model 2>/dev/null || echo unknown)"
+    printf -- '- memory_bytes: `%s`\n' "$(sysctl -n hw.memsize 2>/dev/null || echo unknown)"
+    printf -- '- cpu_count: `%s`\n' "$(sysctl -n hw.ncpu 2>/dev/null || echo unknown)"
+fi
+printf '%s\n' '| filesystem | size | used | available | capacity | mount |' '|---|---|---|---|---|---|'
+df -h / 2>/dev/null | tail -1 | awk '{printf "| %s | %s | %s | %s | %s | %s |\n", $1, $2, $3, $4, $5, $6}'
+
+section 'Dotfiles and repository'
+if [ -d "$ROOT/.git" ]; then
+    git -C "$ROOT" status --short --branch 2>/dev/null | sed 's/^/- /'
+else
+    printf -- '- repository: missing\n'
+fi
+print_symlinks
+
+section 'Toolchain versions'
+print_version brew --version
+print_version nvim --version
+print_version git --version
+print_version node --version
+print_version python3 --version
+print_version mise --version
+print_version uv --version
+print_version go version
+print_version rustc --version
+print_version ollama --version
+print_version opencode --version
+print_version codex --version
+print_version orbctl version
+print_version docker --version
+
+section 'Package managers'
+if command -v brew >/dev/null 2>&1; then
+    formula_count=$(HOMEBREW_NO_AUTO_UPDATE=1 brew list --formula 2>/dev/null | wc -l | tr -d ' ')
+    cask_count=$(HOMEBREW_NO_AUTO_UPDATE=1 brew list --cask 2>/dev/null | wc -l | tr -d ' ')
+    printf -- '- Homebrew formulae: `%s`\n' "$formula_count"
+    printf -- '- Homebrew casks: `%s`\n' "$cask_count"
+    printf -- '- Brewfile check:\n'
+    HOMEBREW_NO_AUTO_UPDATE=1 brew bundle check --no-upgrade --file "$ROOT/brew/.Brewfile" 2>&1 \
+        | sed 's/^/  /' | head -80
+fi
+if command -v mise >/dev/null 2>&1; then
+    printf -- '- mise:\n'
+    mise current 2>/dev/null | sed 's/^/  /' | head -80
+fi
+if command -v uv >/dev/null 2>&1; then
+    printf -- '- uv tools:\n'
+    uv tool list 2>/dev/null | sed 's/^/  /' | head -120
+fi
+if command -v npm >/dev/null 2>&1; then
+    printf -- '- npm globals:\n'
+    npm list -g --depth=0 2>/dev/null | sed 's/^/  /' | head -80
+fi
+
+section 'Container and AI runtime'
+if command -v docker >/dev/null 2>&1; then
+    printf -- '- docker_context: `%s`\n' "$(docker context show 2>/dev/null || echo unknown)"
+    docker version --format '- docker_versions: client={{.Client.Version}} server={{.Server.Version}}' 2>/dev/null || true
+fi
+if command -v orbctl >/dev/null 2>&1; then
+    printf -- '- OrbStack:\n'
+    orbctl status 2>/dev/null | sed 's/^/  /' | head -40
+fi
+if command -v ollama >/dev/null 2>&1; then
+    printf -- '- Ollama models:\n'
+    ollama list 2>/dev/null | sed 's/^/  /' | head -120
+fi
+
+section 'Selected disk consumers'
+for path in \
+    "$HOME/.ollama/models" "$HOME/.codex" "$HOME/.hermes" \
+    "$HOME/.hermes-web-ui/desktop-runtime" "$HOME/.cache/codex-runtimes" \
+    "$HOME/.cache/opencode" "$HOME/.local/share/pnpm" "$HOME/.local/share/mise" \
+    "$HOME/.local/share/uv" "$HOME/Library/Caches/Homebrew" \
+    "$HOME/Archives/dotfiles-legacy"; do
+    print_size "$path"
+done
+
+section 'LaunchAgents'
+print_launchd
+
+section 'Sensitive path inventory (contents not read)'
+print_sensitive_paths | sed 's/^/- /'
+
+section 'Security baseline'
+if command -v fdesetup >/dev/null 2>&1; then
+    printf -- '- FileVault: `%s`\n' "$(fdesetup status 2>/dev/null || echo unknown)"
+fi
+if command -v /usr/libexec/ApplicationFirewall/socketfilterfw >/dev/null 2>&1; then
+    printf -- '- Firewall: `%s`\n' "$(/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate 2>/dev/null || echo unknown)"
+fi
+if command -v tmutil >/dev/null 2>&1; then
+    printf -- '- Time Machine:\n'
+    tmutil destinationinfo 2>/dev/null | sed 's/^/  /' | head -40
+fi

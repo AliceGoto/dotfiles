@@ -1,0 +1,13 @@
+# owner	id	role	autostart	runtime	status	notes
+hermes-studio	hermes-studio	orchestrator	desktop	0.20.x	active	唯一调度入口；桌面应用拥有 gateway 生命周期
+hermes-studio	default	hermes-profile	app-managed	0.20.x	active	按需使用；不创建 profile 级 LaunchAgent
+hermes-studio	assistant	hermes-profile	app-managed	0.20.x	active	桌面 gateway 当前默认 profile；不创建 profile 级 LaunchAgent
+hermes-studio	alice	hermes-profile	app-managed	0.20.x	active	由 Hermes Studio 按需启动；不创建 profile 级 LaunchAgent
+hermes-studio	developer	hermes-profile	app-managed	0.20.x	active	由 Hermes Studio 按需启动；不创建 profile 级 LaunchAgent
+hermes-studio	maki	hermes-profile	app-managed	0.20.x	active	由 Hermes Studio 按需启动；不创建 profile 级 LaunchAgent
+hermes-studio	miaha	hermes-profile	app-managed	0.20.x	active	由 Hermes Studio 按需启动；不创建 profile 级 LaunchAgent
+hermes-studio	rem	hermes-profile	app-managed	0.20.x	active	由 Hermes Studio 按需启动；不创建 profile 级 LaunchAgent
+hermes-studio	tidha	hermes-profile	app-managed	0.20.x	active	由 Hermes Studio 按需启动；不创建 profile 级 LaunchAgent
+hermes-studio	codex	codex-worker	manual	local/current	active	由 Hermes Studio 调度，不作为 launchd 常驻
+hermes-studio	opencode	opencode-worker	manual	local/current	active	由 Hermes Studio 调度，不作为 launchd 常驻
+hermes-studio	ollama	model-service	on-demand	host	active	模型按用途保留，不自动删除

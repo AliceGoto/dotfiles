@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ROOT="${DOTFILES_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)}"
+STATE_DIR="${DOTFILES_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles}"
+INVENTORY_SCRIPT="$ROOT/scripts/system-inventory"
+DOCS_SCRIPT="$ROOT/scripts/sync-obsidian"
+HERMES_AUDIT_SCRIPT="$ROOT/scripts/hermes-audit"
+CONFIG_AUDIT_SCRIPT="$ROOT/scripts/config-audit"
+
+usage() {
+    cat <<'EOF'
+dotfiles - single control plane for the managed macOS/Linux environment
+
+Usage:
+  dotfiles status       show repository and link status
+  dotfiles inventory    write a redacted system inventory
+  dotfiles doctor       run non-destructive health checks
+  dotfiles hermes       audit Hermes Studio profiles and runtime drift
+  dotfiles config       audit managed, runtime, and legacy configuration paths
+  dotfiles docs         update generated Obsidian system pages
+  dotfiles sync         inventory + config audit + generated Obsidian pages
+  dotfiles audit        inventory + doctor + config + docs
+  dotfiles cleanup      show cleanup candidates (dry-run only)
+EOF
+}
+
+inventory() {
+    local stamp output
+    stamp=$(date '+%Y%m%d-%H%M%S')
+    mkdir -p "$STATE_DIR"
+    output="$STATE_DIR/inventory-$stamp.md"
+    DOTFILES_ROOT="$ROOT" DOTFILES_STATE_DIR="$STATE_DIR" "$INVENTORY_SCRIPT" > "$output"
+    printf 'Inventory written: %s\n' "$output"
+}
+
+doctor() {
+    (cd "$ROOT" && ./configure doctor)
+    if command -v docker >/dev/null 2>&1; then
+        context=$(docker context show 2>/dev/null || true)
+        [ "$context" = "orbstack" ] && echo 'OrbStack Docker context: OK' || echo "OrbStack Docker context: ${context:-unknown}"
+        if docker info >/dev/null 2>&1; then
+            echo 'Docker engine: OK'
+        else
+            echo 'Docker engine: unavailable (start OrbStack before running services)'
+        fi
+    else
+        echo 'Docker CLI: missing'
+    fi
+    if command -v docker >/dev/null 2>&1; then
+        OPENROUTER_API_KEY=validation-only docker compose -f "$ROOT/docker/docker-compose-ai.yml" config --quiet
+        echo 'Docker Compose config: OK'
+    fi
+    if command -v mise >/dev/null 2>&1; then
+        mise current 2>/dev/null | sed -n '1,40p'
+    fi
+    "$HERMES_AUDIT_SCRIPT"
+}
+
+hermes() {
+    "$HERMES_AUDIT_SCRIPT"
+}
+
+config() {
+    "$CONFIG_AUDIT_SCRIPT"
+}
+
+cleanup() {
+    echo 'Cleanup is dry-run only. No files, models, volumes, or packages will be removed.'
+    echo 'Review these candidates manually before any future apply operation:'
+    DOTFILES_ROOT="$ROOT" DOTFILES_STATE_DIR="$STATE_DIR" "$INVENTORY_SCRIPT" |
+        sed -n '/^## Selected disk consumers$/,/^## LaunchAgents$/p'
+    echo 'Suggested next review: Ollama model usage, Codex/OpenCode caches, pnpm cache, stale container caches, and the quarantined legacy archive.'
+}
+
+docs() {
+    DOTFILES_ROOT="$ROOT" DOTFILES_STATE_DIR="$STATE_DIR" "$DOCS_SCRIPT"
+}
+
+case "${1:-help}" in
+    status)
+        (cd "$ROOT" && git status --short --branch && ./configure doctor)
+        ;;
+    inventory)
+        inventory
+        ;;
+    doctor)
+        doctor
+        ;;
+    hermes)
+        hermes
+        ;;
+    config)
+        config
+        ;;
+    docs)
+        docs
+        ;;
+    audit)
+        inventory
+        doctor
+        config
+        docs
+        ;;
+    sync)
+        inventory
+        config
+        docs
+        ;;
+    cleanup)
+        cleanup
+        ;;
+    help|--help|-h)
+        usage
+        ;;
+    *)
+        usage >&2
+        exit 2
+        ;;
+esac

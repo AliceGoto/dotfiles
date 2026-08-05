@@ -28,10 +28,26 @@ venv/
 
 # Claude Code local files
 /.claude/
+claude/.claude/hud/cache/
+claude/.claude/.last-update-result.json
+claude/.claude/.omc-*.json
 
 # Machine-local credentials and client runtime state
 gh/.config/gh/hosts.yml
 opencode/.claude.json
+**/.env
+**/.env.*
+!**/.env.example
+**/auth.json
+**/credentials.toml
+**/token.json
+**/*.key
+**/*.pem
+
+# Chat/session history is not configuration
+.aider.chat.history.md
+**/*history*.jsonl
+**/*session*.jsonl
 
 # OpenCode project instructions (local only)
 AGENTS.md

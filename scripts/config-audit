@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+
+set -u
+
+ROOT="${DOTFILES_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)}"
+MANIFEST="${DOTFILES_CONFIG_SURFACE:-$ROOT/manifests/config-surface.tsv}"
+FAILURES=0
+
+redact_path() {
+    local path="$1"
+    case "$path" in
+        "$HOME") printf '%s' '$HOME' ;;
+        "$HOME"/*) printf '%s/%s' '$HOME' "${path#"$HOME/"}" ;;
+        *) printf '%s' "$path" ;;
+    esac
+}
+
+resolve_matches() {
+    local relative="$1" directory pattern
+    if [[ "$relative" == *'*'* || "$relative" == *'?'* ]]; then
+        if [[ "$relative" == */* ]]; then
+            directory="${relative%/*}"
+            pattern="${relative##*/}"
+            find "$HOME/$directory" -maxdepth 1 -name "$pattern" -print 2>/dev/null
+        else
+            find "$HOME" -maxdepth 1 -name "$relative" -print 2>/dev/null
+        fi
+    else
+        printf '%s\n' "$HOME/$relative"
+    fi
+}
+
+canonical_path() {
+    local path="$1" directory target
+    if [ -d "$path" ]; then
+        (cd "$path" && pwd -P)
+        return
+    fi
+    if [ -L "$path" ]; then
+        directory=$(cd "$(dirname "$path")" 2>/dev/null && pwd -P) || return 1
+        target=$(readlink "$path" 2>/dev/null || true)
+        case "$target" in
+            /*) canonical_path "$target" ;;
+            *) canonical_path "$directory/$target" ;;
+        esac
+        return
+    fi
+    directory=$(cd "$(dirname "$path")" 2>/dev/null && pwd -P) || return 1
+    printf '%s/%s' "$directory" "$(basename "$path")"
+}
+
+path_state() {
+    local relative="$1" owner="${2:-}" match source count=0 symlinks=0 regular=0 broken=0
+    while IFS= read -r match; do
+        [ -n "$match" ] || continue
+        if [ -L "$match" ] && [ ! -e "$match" ]; then
+            count=$((count + 1))
+            broken=$((broken + 1))
+        elif [ -e "$match" ]; then
+            count=$((count + 1))
+            if [ -L "$match" ]; then
+                symlinks=$((symlinks + 1))
+            else
+                regular=$((regular + 1))
+            fi
+        fi
+    done < <(resolve_matches "$relative")
+    if [ "$count" -eq 0 ]; then
+        printf 'missing'
+    elif [[ "$relative" == *'*'* || "$relative" == *'?'* ]]; then
+        if [ "$broken" -gt 0 ] || { [ "$symlinks" -gt 0 ] && [ "$regular" -gt 0 ]; }; then
+            printf 'mixed (%s: symlink=%s, present=%s, broken=%s)' \
+                "$count" "$symlinks" "$regular" "$broken"
+        elif [ "$symlinks" -gt 0 ]; then
+            printf 'symlink (%s)' "$symlinks"
+        else
+            printf 'present (%s)' "$regular"
+        fi
+    else
+        match="$HOME/$relative"
+        source="$ROOT/$owner/$relative"
+        if [ "$owner" = "dotfiles" ]; then
+            source="$ROOT"
+        fi
+        if [ -e "$match" ] && [ -e "$source" ] &&
+            [ "$(canonical_path "$match" 2>/dev/null || true)" = "$(canonical_path "$source" 2>/dev/null || true)" ]; then
+            printf 'symlink-ok'
+        elif [ "$broken" -gt 0 ]; then
+            printf 'broken-symlink'
+        elif [ "$symlinks" -gt 0 ]; then
+            printf 'symlink'
+        else
+            printf 'present'
+        fi
+    fi
+}
+
+printf '# Configuration surface audit\n\n'
+printf -- '- generated_at: `%s`\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+printf -- '- source: `%s`\n\n' "$(redact_path "$ROOT")"
+printf '| id | scope | path | owner | declared | observed | sensitivity | action |\n'
+printf '|---|---|---|---|---|---|---|---|\n'
+
+if [ ! -f "$MANIFEST" ]; then
+    printf '| ERROR | | `%s` | | missing manifest | | | create manifests/config-surface.tsv |\n' \
+        "$(redact_path "$MANIFEST")"
+    FAILURES=$((FAILURES + 1))
+else
+    while IFS=$'\t' read -r id scope relative owner declared sensitivity action; do
+        case "$id" in
+            ''|'#'*) continue ;;
+        esac
+        observed=$(path_state "$relative" "$owner")
+        printf '| %s | %s | `%s` | %s | %s | %s | %s | %s |\n' \
+            "$id" "$scope" "\$HOME/$relative" "$owner" "$declared" "$observed" "$sensitivity" "$action"
+
+        if [ "$declared" = active ] && [ "$scope" = managed ]; then
+            case "$observed" in
+                symlink|symlink-ok) ;;
+                *) FAILURES=$((FAILURES + 1)) ;;
+            esac
+        fi
+        if [ "$id" = dotfiles-link ] && [ "$observed" != symlink-ok ]; then
+            FAILURES=$((FAILURES + 1))
+        fi
+    done < "$MANIFEST"
+fi
+
+printf '\n## Interpretation\n\n'
+printf '%s\n' '- `managed` paths should be Stow symlinks into the dotfiles repository.'
+printf '%s\n' '- `runtime` paths remain on the machine and are audited, never copied into the repository.'
+printf '%s\n' '- `legacy` paths are review candidates only; this command never moves or deletes them.'
+
+if [ "${CONFIG_AUDIT_STRICT:-0}" = 1 ] && [ "$FAILURES" -gt 0 ]; then
+    exit 1
+fi

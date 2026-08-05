@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SELF="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/$(basename -- "${BASH_SOURCE[0]}")"
+NODE_BIN="${NODE:-$(command -v node 2>/dev/null || true)}"
+
+for candidate in \
+    "${EXCALIDRAW_MCP_BIN:-}" \
+    /opt/homebrew/bin/excalidraw-mcp \
+    /usr/local/bin/excalidraw-mcp; do
+    [ -n "$candidate" ] || continue
+    [ "$candidate" = "$SELF" ] && continue
+    if [ -x "$candidate" ]; then
+        exec "$candidate" "$@"
+    fi
+done
+
+if [ -n "$NODE_BIN" ]; then
+    for script in \
+        /opt/homebrew/lib/node_modules/excalidraw-mcp/src/cli.js \
+        /usr/local/lib/node_modules/excalidraw-mcp/src/cli.js; do
+        if [ -f "$script" ]; then
+            exec "$NODE_BIN" "$script" "$@"
+        fi
+    done
+fi
+
+if command -v npm >/dev/null 2>&1 && [ -n "$NODE_BIN" ]; then
+    npm_root=$(npm root -g 2>/dev/null || true)
+    script="$npm_root/excalidraw-mcp/src/cli.js"
+    if [ -f "$script" ]; then
+        exec "$NODE_BIN" "$script" "$@"
+    fi
+fi
+
+echo 'excalidraw-mcp is not installed; add it to the software manifest before installing.' >&2
+exit 127

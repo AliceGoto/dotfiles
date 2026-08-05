@@ -1,0 +1,178 @@
+#!/usr/bin/env bash
+
+set -u
+
+HERMES_HOME="${HERMES_HOME:-$HOME/.hermes}"
+AGENT_DIR="$HOME/Library/LaunchAgents"
+WARNINGS=0
+
+print_secret_modes() {
+    local path mode
+    while IFS= read -r path; do
+        if [ "$(uname -s)" = Darwin ]; then
+            mode=$(stat -f '%Lp' "$path" 2>/dev/null || printf 'unknown')
+        else
+            mode=$(stat -c '%a' "$path" 2>/dev/null || printf 'unknown')
+        fi
+        if [ "$mode" = 600 ]; then
+            printf -- '- secret mode OK: `%s`\n' "${path#$HOME/}"
+        else
+            printf -- '- WARNING secret mode %s: `%s`\n' "$mode" "${path#$HOME/}"
+            WARNINGS=$((WARNINGS + 1))
+        fi
+    done < <(find "$HERMES_HOME" -type f \( -name '.env' -o -name 'auth.json' \
+        -o -name 'config.yaml' -o -name 'config.yaml.*' -o -name 'config_services.yaml' \) \
+        -print 2>/dev/null | sort)
+}
+
+print_inline_key_warnings() {
+    local path
+    while IFS= read -r path; do
+        if grep -Eq '^[[:space:]]*api_key:[[:space:]]*[^[:space:]]' "$path" 2>/dev/null; then
+            printf -- '- WARNING inline api_key present: `%s`\n' "${path#$HOME/}"
+            WARNINGS=$((WARNINGS + 1))
+        fi
+    done < <(find "$HERMES_HOME" -type f \( -name 'config.yaml' -o -name 'config.yaml.*' \
+        -o -name 'config_services.yaml' \) -print 2>/dev/null | sort)
+}
+
+print_agents() {
+    local plist label state program runtime exit_code found=0
+    for plist in "$AGENT_DIR"/ai.hermes.gateway-*.plist; do
+        [ -f "$plist" ] || continue
+        found=1
+        label=$(basename "$plist" .plist)
+        program=$(plutil -extract ProgramArguments.0 raw "$plist" 2>/dev/null || printf 'unknown')
+        runtime=$(printf '%s\n' "$program" | sed -nE 's#.*desktop-runtime/hermes/([^/]+)/.*#\1#p')
+        state=$(launchctl print "gui/$UID/$label" 2>/dev/null \
+            | awk -F'= ' '/^[[:space:]]*state =/{print $2; exit}')
+        exit_code=$(launchctl print "gui/$UID/$label" 2>/dev/null \
+            | awk -F'= ' '/last exit code/{print $2; exit}')
+        printf -- '- `%s`: state=%s runtime=%s last_exit=%s\n' \
+            "$label" "${state:-not-loaded}" "${runtime:-unknown}" "${exit_code:-unknown}"
+        printf -- '  - WARNING: profile LaunchAgent is outside the Hermes Studio control plane\n'
+        WARNINGS=$((WARNINGS + 1))
+    done
+    if [ "$found" -eq 0 ]; then
+        printf -- '- none (expected; Hermes Studio owns profile gateway lifecycle)\n'
+    fi
+}
+
+print_runtime_processes() {
+    local processes runtime_019 runtime_020
+    processes=$(ps -axo pid=,command= 2>/dev/null | awk '/hermes_cli\.main/ {print}')
+    runtime_019=$(printf '%s\n' "$processes" | grep -c 'desktop-runtime/hermes/0\.19\.0/' || true)
+    runtime_020=$(printf '%s\n' "$processes" | grep -c 'desktop-runtime/hermes/0\.20\.' || true)
+    printf -- '- Hermes CLI processes: runtime_0.19=%s runtime_0.20=%s\n' "$runtime_019" "$runtime_020"
+    if [ "$runtime_019" -gt 0 ]; then
+        printf -- '- WARNING: legacy 0.19 Hermes process still exists\n'
+        WARNINGS=$((WARNINGS + 1))
+    fi
+}
+
+count_signal() {
+    local pattern="$1" file="$2"
+    tail -n 1000 "$file" 2>/dev/null | grep -Eic -- "$pattern" || true
+}
+
+fingerprint_value() {
+    if command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 | cut -c1-12
+    elif command -v sha256sum >/dev/null 2>&1; then
+        sha256sum | cut -c1-12
+    else
+        printf 'unavailable'
+    fi
+}
+
+print_recent_signals() {
+    local profile_dir profile file mcp weixin_dns weixin_conflict exits total found=0
+    for profile_dir in "$HERMES_HOME"/profiles/*; do
+        [ -d "$profile_dir" ] || continue
+        profile=$(basename "$profile_dir")
+        mcp=0
+        weixin_dns=0
+        weixin_conflict=0
+        exits=0
+        for file in "$HERMES_HOME/profiles/$profile/logs/errors.log" \
+            "$HERMES_HOME/profiles/$profile/logs/gateway.error.log" \
+            "$HERMES_HOME/profiles/$profile/logs/gateway-exit-diag.log"; do
+            [ -f "$file" ] || continue
+            mcp=$((mcp + $(count_signal "function' object is not subscriptable|MCP.*not subscriptable" "$file")))
+            weixin_dns=$((weixin_dns + $(count_signal 'Cannot connect to host ilinkai\.weixin\.qq\.com|Server disconnected' "$file")))
+            weixin_conflict=$((weixin_conflict + $(count_signal 'Weixin bot token already in use|Weixin.*held by gateway|token conflict' "$file")))
+            exits=$((exits + $(count_signal 'gateway\.exit_nonzero' "$file")))
+        done
+        total=$((mcp + weixin_dns + weixin_conflict + exits))
+        if [ "$total" -gt 0 ]; then
+            found=1
+            printf -- '- `%s` (historical logs): mcp_function_error=%s weixin_network=%s weixin_token_conflict=%s gateway_exit=%s\n' \
+                "$profile" "$mcp" "$weixin_dns" "$weixin_conflict" "$exits"
+        fi
+    done
+    if [ "$found" -eq 0 ]; then
+        printf -- '- no recorded runtime signals\n'
+    fi
+}
+
+print_weixin_fingerprints() {
+    local tmp env_file profile token fingerprint
+    tmp=$(mktemp "${TMPDIR:-/tmp}/hermes-weixin.XXXXXX")
+    for env_file in "$HERMES_HOME"/profiles/*/.env; do
+        [ -f "$env_file" ] || continue
+        profile=$(basename "$(dirname "$env_file")")
+        token=$(awk -F= '$1 == "WEIXIN_TOKEN" {sub(/^[^=]*=/, ""); print; exit}' "$env_file")
+        [ -n "$token" ] || continue
+        fingerprint=$(printf '%s' "$token" | fingerprint_value)
+        printf '%s\t%s\n' "$fingerprint" "$profile" >> "$tmp"
+    done
+    if [ -s "$tmp" ]; then
+        sort "$tmp" | awk -F '\t' '
+            {count[$1]++; profiles[$1] = profiles[$1] (profiles[$1] ? "," : "") $2}
+            END {
+                for (fingerprint in count) {
+                    if (count[fingerprint] > 1) {
+                        printf "- duplicate token fingerprint `%s`: profiles=%s\n", fingerprint, profiles[fingerprint]
+                    } else {
+                        printf "- unique token fingerprint `%s`: profile=%s\n", fingerprint, profiles[fingerprint]
+                    }
+                }
+            }'
+    else
+        printf -- '- no WEIXIN_TOKEN configured in profile .env files\n'
+    fi
+    rm -f "$tmp"
+}
+
+printf '# Hermes Studio audit\n\n'
+printf -- '- Hermes home: `%s`\n' "${HERMES_HOME#$HOME/}"
+printf -- '- policy: Hermes Studio is the only orchestrator; profile gateways are app-managed and profile LaunchAgents must remain absent.\n'
+printf -- '- desktop runtime directories:\n'
+find "$HOME/.hermes-web-ui/desktop-runtime/hermes" -mindepth 1 -maxdepth 1 -type d \
+    -exec basename {} \; 2>/dev/null | sort | sed 's/^/  - /'
+
+printf '\n## LaunchAgents\n\n'
+if command -v launchctl >/dev/null 2>&1; then
+    print_agents
+else
+    printf -- '- launchd unavailable (non-macOS)\n'
+fi
+
+printf '\n## Runtime processes\n\n'
+print_runtime_processes
+
+printf '\n## Weixin token reuse (fingerprints only)\n\n'
+print_weixin_fingerprints
+
+printf '\n## Recent runtime signals (counts only)\n\n'
+print_recent_signals
+
+printf '\n## Secret-bearing file modes\n\n'
+print_secret_modes
+
+printf '\n## Inline credential review\n\n'
+print_inline_key_warnings
+
+if [ "${HERMES_AUDIT_STRICT:-0}" = 1 ] && [ "$WARNINGS" -gt 0 ]; then
+    exit 1
+fi
