@@ -8,7 +8,6 @@ return {
   {
     "nvim-lualine/lualine.nvim",
     event = "VeryLazy",
-    dependencies = { "nvim-web-devicons" },
     opts = {
       options = {
         theme = "tokyonight",
@@ -52,7 +51,6 @@ return {
   {
     "akinsho/bufferline.nvim",
     event = "VeryLazy",
-    dependencies = { "nvim-web-devicons" },
     opts = {
       options = {
         mode = "buffers",

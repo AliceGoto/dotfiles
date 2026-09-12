@@ -61,18 +61,21 @@ brew install stow
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
-### 配置镜像源
+### 包管理器配置
 
-**npm 镜像**（`npm/.npmrc`）：
+**npm registry**（`npm/.npmrc`，默认 npmjs.org）：
 ```bash
-# 部署后生效
-ln -s ~/dotfiles/npm/.npmrc ~/.npmrc
+# GNU Stow 部署全部配置
+./configure link
+npm config get registry
 ```
 
-**pip 镜像**（`pip/.config/pip/pip.conf`）：
+地区网络受限时，只在当前项目写入项目级 `.npmrc`；不要修改 dotfiles 的全局真相源。
+
+**pip registry**（`pip/.config/pip/pip.conf`）：
 ```bash
-mkdir -p ~/.config/pip
-ln -s ~/dotfiles/pip/.config/pip/pip.conf ~/.config/pip/pip.conf
+./configure link
+pip config list
 ```
 
 ### 安装所有 Homebrew 包
@@ -96,7 +99,7 @@ brew bundle --file brew/.Brewfile
 | **开发** | `uv`, `ruff`, `just`, `mise`, `go` | 构建、检查与运行时 |
 | **系统** | `btop`, `fastfetch`, `jq`, `yq` | 监控与数据处理 |
 | **网络** | `httpie` | API 调试 |
-| **其他** | `colima`, `docker`, `ollama` | 容器与本地 AI |
+| **其他** | `OrbStack`, `docker`, `ollama` | 容器与本地 AI |
 
 #### GUI 应用（Cask）
 
@@ -524,8 +527,10 @@ git config --global alias.st "status"
 ### 安装
 
 ```bash
-brew install docker colima
-colima start
+# OrbStack 提供 Docker CLI/Compose；先启动 OrbStack
+open -a OrbStack
+docker context use orbstack
+docker context show
 ```
 
 ### AI 服务栈（`docker/docker-compose-ai.yml`）
@@ -812,8 +817,9 @@ npm install -g @openai/codex
 
 # 9. 在具体 Python 项目中执行 uv sync
 
-# 10. 启动 Colima + Docker
-colima start
+# 10. 启动 OrbStack + Docker
+open -a OrbStack
+docker context use orbstack
 
 # 11. 重开终端
 exec zsh
@@ -854,7 +860,7 @@ just doctor
 | `command not found: stow` | Stow 未安装 | `brew install stow` |
 | Neovim 插件安装失败 | lazy.nvim 未同步 | `:Lazy! sync` |
 | API Key 未加载 | Keychain 无对应条目 | `security add-generic-password -s OPENROUTER_API_KEY -w "your-key"` |
-| Docker 连接失败 | colima 未运行 | `colima start` |
+| Docker 连接失败 | OrbStack 未运行或 context 错误 | `open -a OrbStack && docker context use orbstack` |
 | ghostty 中文乱码 | 字体缺失 | `brew install --cask font-maple-mono-nf-cn` |
 | zsh 启动慢 | 模块过多 | `zimfw install` 重新构建 |
 

@@ -28,6 +28,8 @@ return {
         markdown = { "prettierd", "prettier", stop_after_first = true },
         sh = { "shfmt" },
       },
+      -- 不硬编码 tab-width，让 prettier 跟随项目配置（.prettierrc / package.json）
+      -- 如需全局覆盖，可在项目目录下加 .prettierrc 配置 tabWidth
       format_on_save = function()
         if vim.g.disable_autoformat then
           return

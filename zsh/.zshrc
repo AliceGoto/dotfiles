@@ -9,7 +9,6 @@ export VISUAL=nvim
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
-export COLIMA_HOME="$XDG_CONFIG_HOME/colima"
 export GOPATH="$HOME/go"
 export BAT_THEME="TokyoNight Storm"
 export BAT_PAGER="less -RF"
@@ -119,3 +118,23 @@ export PATH="$HOME/.pentest-ai/bin:$PATH"
 
 # kimi-code
 export PATH="/Users/zhuyao/.kimi-code/bin:$PATH"
+
+# >>> Hermes Studio CLI shim >>>
+case ":$PATH:" in
+  *":$HOME/bin:"*) ;;
+  *) export PATH="$HOME/bin:$PATH" ;;
+esac
+# <<< Hermes Studio CLI shim <<<
+
+# 开发环境别名
+if [ -f ~/.zsh/aliases-dev.zsh ]; then
+    source ~/.zsh/aliases-dev.zsh
+fi
+
+# 开发工具 PATH
+export PATH="$HOME/.local/bin:$HOME/go/bin:$HOME/.cargo/bin:$PATH"
+
+# OpenClaw Completion
+[ -f "/Users/zhuyao/.openclaw/completions/openclaw.zsh" ] && source "/Users/zhuyao/.openclaw/completions/openclaw.zsh"
+export PATH="$HOME/.nighthawk/bin:$PATH"
+alias nh=nighthawk

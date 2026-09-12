@@ -2,7 +2,7 @@
 -- plugins/tools.lua — UI 工具
 -- 部署路径: .config/nvim/lua/plugins/tools.lua
 -- 所属包: nvim/
--- 功能: dressing.nvim（vim.ui 美化）、colorizer（颜色预览）、treesj（行拆分/合并）
+-- 功能: flash（跳转）、smart-splits（窗口导航）、treesj、grug-far（搜索替换）、todo-comments、undotree、persisted（会话）、crates、neogen
 -- ==========================================
 return {
   {

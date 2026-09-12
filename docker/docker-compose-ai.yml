@@ -3,7 +3,7 @@
 # 部署路径: ~/dotfiles/docker/docker-compose-ai.yml
 # 所属包: docker/
 # 功能: Qdrant 默认向量库 + 可选 LiteLLM
-# 使用: colima start && docker compose -f docker-compose-ai.yml up -d
+# 使用: OrbStack 运行中且 docker context 为 orbstack，然后执行 docker compose up -d
 # ==========================================
 
 services:

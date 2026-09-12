@@ -76,10 +76,11 @@
 	sw = switch
 	ssw = switch -
 	mg = merge --no-ff
-[url "git@github.com:"]
-	insteadOf = https://github.com/
 [safe]
 	directory = /Users/zhuyao
 	directory = *
 [http]
 	version = HTTP/1.1
+	proxy = http://127.0.0.1:7897
+[https]
+	proxy = http://127.0.0.1:7897

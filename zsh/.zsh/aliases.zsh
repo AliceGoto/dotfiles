@@ -40,7 +40,7 @@ alias ping='ping -c 5'
 
 alias d=docker dc='docker compose' dps='docker ps' dpsa='docker ps -a'
 alias di='docker images' drm='docker rm' drmi='docker rmi'
-alias dprune='docker system prune'
+alias dprune='dotfiles cleanup'
 alias top=btop bt=btop lg=lazygit
 alias jqless='jq -C | less -R' yqless='yq -C | less -R'
 alias brewup='brew update && brew upgrade && brew cleanup'

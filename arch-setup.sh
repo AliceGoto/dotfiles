@@ -17,7 +17,9 @@ if ! command -v yay &>/dev/null; then
     echo "==> 安装 yay"
     git clone https://aur.archlinux.org/yay.git /tmp/yay
     cd /tmp/yay && makepkg -si --noconfirm
-    rm -rf /tmp/yay
+    if [ -d /tmp/yay ]; then
+        rm -r /tmp/yay
+    fi
 fi
 
 # 安装 AUR 包

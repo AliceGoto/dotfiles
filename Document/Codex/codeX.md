@@ -46,11 +46,10 @@ npm install -g @openai/codex
 codex --version
 ```
 
-国内网络慢可先换源：
+地区网络受限时，只对这一次安装临时覆盖 registry（不要修改全局真相源）：
 
 ```bash
-npm config set registry https://registry.npmmirror.com
-npm install -g @openai/codex
+npm install -g --registry=https://registry.npmmirror.com @openai/codex
 ```
 
 #### 方式二：Homebrew 安装

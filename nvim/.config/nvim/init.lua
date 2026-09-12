@@ -20,6 +20,10 @@ if not vim.uv.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
+-- 设置代理环境变量
+vim.env.HTTP_PROXY = "http://127.0.0.1:7897"
+vim.env.HTTPS_PROXY = "http://127.0.0.1:7897"
+
 require("core.options")
 require("core.keymaps")
 
@@ -46,4 +50,8 @@ require("lazy").setup("plugins", {
       },
     },
   },
+  ui = {
+    border = "rounded",
+  },
+  timeout = 30000, -- 30秒超时
 })

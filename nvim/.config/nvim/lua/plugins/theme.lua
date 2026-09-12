@@ -2,7 +2,7 @@
 -- plugins/theme.lua — UI 主题
 -- 部署路径: .config/nvim/lua/plugins/theme.lua
 -- 所属包: nvim/
--- 功能: tokyonight（配色）、lualine（状态栏）、bufferline（标签栏）、which-key（快捷键引导）
+-- 功能: tokyonight（配色方案）
 -- ==========================================
 return {
   {
@@ -45,5 +45,4 @@ return {
       vim.cmd.colorscheme("tokyonight")
     end,
   },
-  { "nvim-tree/nvim-web-devicons", lazy = true },
 }

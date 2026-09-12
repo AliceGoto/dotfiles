@@ -11,3 +11,14 @@ fi
 # Added by OrbStack: command-line tools and integration
 # This won't be added again if you remove it.
 source ~/.orbstack/shell/init.zsh 2>/dev/null || :
+
+export DOTFILES_ROOT="${DOTFILES_ROOT:-$HOME/dotfiles}"
+export DOTFILES_STATE_DIR="${DOTFILES_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles}"
+export DOCKER_CONTEXT="${DOCKER_CONTEXT:-orbstack}"
+
+# >>> Hermes Studio CLI shim >>>
+case ":$PATH:" in
+  *":$HOME/bin:"*) ;;
+  *) export PATH="$HOME/bin:$PATH" ;;
+esac
+# <<< Hermes Studio CLI shim <<<

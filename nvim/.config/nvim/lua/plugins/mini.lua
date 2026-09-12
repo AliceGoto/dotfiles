@@ -23,6 +23,8 @@ return {
         },
       })
       require("mini.icons").setup()
+      -- 用 mini.icons 兼容层接管 nvim-web-devicons，全配置只保留一个图标库
+      require("mini.icons").mock_nvim_web_devicons()
       require("mini.comment").setup()
     end,
   },

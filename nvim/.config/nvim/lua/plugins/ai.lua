@@ -1,9 +1,10 @@
 -- ==========================================
--- plugins/ai.lua — AI 插件（Avante + blink.cmp）
+-- plugins/ai.lua — 代码补全
 -- 部署路径: .config/nvim/lua/plugins/ai.lua
 -- 所属包: nvim/
--- 功能: AI 对话补全及内联编辑，通过 Zen Proxy 路由到 DeepSeek V4 Flash
+-- 功能: blink.cmp 补全 + Supermaven AI 行内补全
 -- ==========================================
+
 return {
   {
     "saghen/blink.cmp",
@@ -33,6 +34,7 @@ return {
           kind_icons = icons,
         },
         sources = {
+          -- 注意：不要把 "supermaven" 加进来——它是幽灵文本内联补全，不走 blink 菜单
           default = { "lsp", "path", "snippets", "buffer" },
         },
         completion = {
@@ -46,30 +48,17 @@ return {
     end,
   },
   {
-    "yetone/avante.nvim",
-    build = "make",
-    dependencies = {
-      "nvim-lua/plenary.nvim",
-      "MunifTanjim/nui.nvim",
-      "MeanderingProgrammer/render-markdown.nvim",
-      "nvim-tree/nvim-web-devicons",
-    },
-    cmd = { "AvanteAsk", "AvanteChat", "AvanteEdit", "AvanteToggle" },
-    opts = {
-      provider = "zen",
-      providers = {
-        zen = {
-          __inherited_from = "openai",
-          endpoint = "http://127.0.0.1:8123/v1",
-          model = "deepseek-v4-flash-free",
-          api_key_name = "",
+    "supermaven-inc/supermaven-nvim",
+    event = "InsertEnter",
+    config = function()
+      require("supermaven-nvim").setup({
+        keymaps = {
+          accept_suggestion = "<C-y>",
+          accept_word = "<C-j>",
+          clear_suggestion = "<C-]>",
         },
-      },
-      behaviour = {
-        auto_set_keymaps = false,
-        auto_suggestions = false,
-        auto_add_current_file = true,
-      },
-    },
+        ignore_filetypes = { "markdown", "text" },
+      })
+    end,
   },
 }
