@@ -51,3 +51,12 @@ opencode/.claude.json
 
 # OpenCode project instructions (local only)
 AGENTS.md
+
+# 独立项目子目录（不属于 dotfiles stow 管理，勿提交）
+LingChat/
+NotitleCode/
+
+# 本地日志与运行时产物
+*.log
+excalidraw.log
+nvim.log

@@ -24,6 +24,8 @@ dotfiles/
 ├── docker/        docker-compose-ai.yml + litellm_config.yaml
 ├── claude/        .claude/
 ├── configure      — 部署脚本
+├── setup-mac.sh   — macOS 一键安装脚本
+├── TUTORIAL.md    — 使用教程
 └── justfile         — 任务编排
 ```
 
@@ -315,6 +317,16 @@ Avante 通过本地 Zen Proxy（127.0.0.1:8123）路由到 DeepSeek V4 Flash 等
 | `mise` | `pyenv`/`nvm`/`rbenv` | 统一运行时版本管理 |
 | `fastfetch` | `neofetch` | 系统信息 |
 | `just` | `make` | 任务编排 |
+
+## 全新 Mac 一键安装
+
+全新 macOS 机器除了下方手工分步流程，也可直接用一键安装脚本完成整站部署：
+
+```bash
+bash setup-mac.sh
+```
+
+脚本**幂等**，可重复执行；涉及隐私的环节（API 密钥、Keychain、token 等）只做**提示引导**，不读取、不写入、不自动配置。完整分步流程（`git clone` → `./configure link` → `brew bundle` → `zimfw install` → `mise install` → `exec zsh` → `./configure doctor`）见下方「部署」。
 
 ## 部署
 

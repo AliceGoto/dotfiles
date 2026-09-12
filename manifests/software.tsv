@@ -7,9 +7,12 @@ python	python-runtime	mise	active	python3	$HOME/.config/mise/config.toml
 python-project-deps	python-dependencies	uv	active	uv add	project/pyproject.toml + uv.lock
 python-cli-tools	python-cli	uv	active	uv tool	$HOME/.local/share/uv/tools
 go	go-runtime	Homebrew	active	go	$HOME/go
-rust	rust-runtime	rustup	active	rustc	$HOME/.cargo
+rust	rust-runtime	Homebrew	active	rustc	$HOME/.cargo
 neovim	editor	Homebrew	active	nvim	$HOME/.config/nvim
 ghostty	terminal	Homebrew	active	ghostty	$HOME/.config/ghostty
+font-maple-mono-nf	font	Homebrew	active	—	$HOME/Library/Fonts
+font-maple-mono-nf-cn	font	Homebrew	active	—	$HOME/Library/Fonts
+font-noto-sans-cjk-sc	font	Homebrew	active	—	$HOME/Library/Fonts
 zellij	multiplexer	Homebrew	active	zellij	$HOME/.config/zellij
 fzf	search	Homebrew	active	fzf	$HOME/.zsh
 ripgrep	search	Homebrew	active	rg	$HOME/.zsh
@@ -32,12 +35,17 @@ just	task-runner	Homebrew	active	just	$HOME/dotfiles/justfile
 gofumpt	go-formatter	Homebrew	review	gofumpt	$HOME/dotfiles/justfile
 golangci-lint	go-linter	Homebrew	review	golangci-lint	$HOME/dotfiles/justfile
 shfmt	shell-formatter	Homebrew	review	shfmt	$HOME/dotfiles/justfile
-orbstack	container-runtime	OrbStack	active	orbctl	$HOME/.orbstack
+orbstack	container-runtime	Homebrew	active	orbctl	$HOME/.orbstack
 ollama	local-models	Homebrew	active	ollama	$HOME/.ollama
 hermes-studio	ai-orchestrator	application	active	hermes-studio	$HOME/.hermes
 codex	ai-worker	Homebrew	active	codex	$HOME/.codex
+gemini-cli	ai-cli	Homebrew	active	gemini	$HOME/.gemini
+lm-studio	llm-desktop	Homebrew	active	—	—
+nighthawk	ai-agent	alicegoto/nighthawk tap	review	nighthawk	$HOME/.nighthawk
 opencode	ai-worker	Homebrew	active	opencode	$HOME/.config/opencode
 excalidraw-mcp	mcp-server	npm/manual	active	excalidraw-mcp	$HOME/.local/bin/excalidraw-mcp
 obsidian	knowledge-base	application	active	obsidian	$HOME/Documents/Obsidian Vault
 raycast	launcher	application	active	raycast	$HOME/Library/Application Support/Raycast
+postman	api-client	Homebrew	active	postman	—
+dbeaver-community	database-client	Homebrew	active	dbeaver	—
 auto-review	code-review	dotfiles/auto-review	active	auto-review.py	$HOME/.hermes/scripts

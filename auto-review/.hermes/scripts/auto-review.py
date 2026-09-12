@@ -65,7 +65,38 @@ RULES = [
 
 
 def iter_files(root):
+    """生成待扫描文件清单。
+
+    - pre-commit 模式（默认）：若项目是 git 仓库，扫描面 = git 已跟踪 + 未忽略的未跟踪文件，
+      天然排除 .gitignore 忽略的目录（如嵌套独立项目），避免误报阻塞提交。
+    - 报告模式（--report）或非 git 仓库：os.walk 全量扫描（报告本就是全项目审查）。
+    """
     total = 0
+    # pre-commit 模式：git 文件清单
+    if not REPORT_MODE and os.path.isdir(os.path.join(root, ".git")):
+        try:
+            import subprocess
+            out = subprocess.run(
+                ["git", "-C", root, "ls-files", "-c", "-o", "--exclude-standard"],
+                capture_output=True, text=True, timeout=30,
+            ).stdout
+            paths = [line.rstrip("\n") for line in out.splitlines() if line.strip()]
+        except Exception:
+            paths = None
+        if paths is not None:
+            for rel in paths[:5000]:  # 安全上限
+                p = os.path.normpath(os.path.join(root, rel))
+                try:
+                    if os.path.getsize(p) > MAX_FILE_SIZE:
+                        continue
+                    yield p
+                    total += 1
+                except OSError:
+                    continue
+            if len(paths) > 5000:
+                print("⚠️  文件数超5000，提前停止（项目过大，建议分目录扫描）")
+            return
+    # 全量扫描（报告模式 / 非 git 仓库 / git 命令失败）
     for dirpath, dirnames, filenames in os.walk(root):
         # 原地剪枝跳过目录
         dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS and not d.startswith(".")]
@@ -130,13 +161,22 @@ def main():
         print(f"✅ 报告已生成: {report} ({len(issues)} issues)")
         return 0
 
-    if issues:
-        print(f"⚠️  发现 {len(issues)} 个问题:")
+    critical = sum(1 for i in issues if i[0] == "CRITICAL")
+    if critical:
+        print(f"⚠️  发现 {len(issues)} 个问题（CRITICAL {critical}）:")
         for sev, rel, ln, desc, content in issues:
             print(f"  [{sev}] {rel}:L{ln} — {desc}: {content}")
         print("\n❌ 提交被阻止 — 请先修复 CRITICAL 问题（或确认后 git commit --no-verify）")
         return 1
-    print(f"✅ 扫描通过（{scanned} 个文件，无问题）")
+    if issues:
+        warning = sum(1 for i in issues if i[0] == "WARNING")
+        suggestion = sum(1 for i in issues if i[0] == "SUGGESTION")
+        print(f"⚠️  发现 {len(issues)} 个建议（CRITICAL 0 / WARNING {warning} / SUGGESTION {suggestion}）")
+        for sev, rel, ln, desc, content in issues:
+            print(f"  [{sev}] {rel}:L{ln} — {desc}: {content}")
+        print("ℹ️  无 CRITICAL，允许提交（WARNING/SUGGESTION 为建议，不阻塞）")
+    else:
+        print(f"✅ 扫描通过（{scanned} 个文件，无问题）")
     return 0
 
 

@@ -15,6 +15,8 @@
 ├── README.md          ← 项目说明
 ├── CONFIG_MAP.md      ← 本文档
 ├── AGENTS.md          ← AI 助手指令
+├── setup-mac.sh       ← macOS 一键安装
+├── TUTORIAL.md        ← 教程
 │
 ├── zsh/               ← 💻 Shell 环境
 ├── p10k/              ← 🎨 提示符主题
@@ -32,10 +34,13 @@
 │
 ├── nvim/              ← ✏️ 主力编辑器
 ├── mise/              ← 🏃 运行时版本管理
-├── docker/            ← 🐳 容器编排
+├── docker/            ← 🐳 OrbStack + Docker Compose 编排
+├── manifests/         ← 📋 软件、配置面和 Hermes profile 清单
+├── scripts/           ← 🩺 inventory、config audit、doctor、文档和 dry-run 清理
 ├── brew/              ← 🍺 Homebrew 包声明
 ├── opencode/          ← 🤖 AI 编码助手
 ├── claude/            ← 🤖 Claude Code 配置
+├── local-bin/         ← 🩺 dotfiles 统一 CLI 入口
 │
 └── gh/                ← 🐙 GitHub CLI
 ```
@@ -94,7 +99,7 @@
 | 元数据 | 值 |
 |--------|-----|
 | 部署路径 | `~/.npmrc` → `dotfiles/npm/.npmrc` |
-| 用途 | npm 镜像源配置 |
+| 用途 | npmjs.org 官方 registry；地区镜像在项目级覆盖 |
 
 #### `pip/` — Python 包管理
 | 元数据 | 值 |
@@ -178,12 +183,32 @@
 | 用途 | 管理 Node 22 + Python 3.12 |
 | 命令 | `mise install` 一键安装 |
 
-#### `docker/` — Docker 编排（未 stow 部署）
+#### `docker/` — OrbStack + Docker Compose 编排
 | 元数据 | 值 |
 |--------|-----|
 | 文件 | `docker-compose-ai.yml`、`litellm_config.yaml` |
 | 用途 | Qdrant 默认向量库；LiteLLM (`llm`) 按 profile 启用 |
-| 前置 | `colima start`（需先启动 colima VM） |
+| 前置 | OrbStack 正在运行且 `docker context show` 为 `orbstack` |
+
+#### `manifests/` — 软件与 AI 生命周期清单
+
+| 文件 | 用途 |
+|------|------|
+| `software.tsv` | 软件来源、状态、命令和配置路径 |
+| `ai-profiles.tsv` | Hermes Studio 调度关系和 profile 生命周期 |
+| `config-surface.tsv` | 家目录托管、运行态和 legacy 路径边界 |
+
+#### `scripts/` — 系统控制面
+
+| 命令 | 用途 |
+|------|------|
+| `scripts/dotfiles inventory` | 生成脱敏系统清单 |
+| `scripts/dotfiles doctor` | 检查 Stow、OrbStack、Compose、mise |
+| `scripts/dotfiles hermes` | 审计 Hermes profile、运行时和敏感文件权限 |
+| `scripts/dotfiles config` | 审计托管、运行态和 legacy 配置路径 |
+| `scripts/dotfiles docs` | 更新 Obsidian 生成页面 |
+| `scripts/dotfiles sync` | inventory + config + docs，一次同步系统状态 |
+| `scripts/dotfiles cleanup` | 只显示清理候选，不删除内容 |
 
 ---
 
@@ -212,15 +237,31 @@
 | | `~/.claude/hud/` → `dotfiles/claude/.claude/hud/` |
 | 用途 | Claude Code AI 编码助手配置（系统提示词、规则、技能、智能体） |
 | 未纳入 | 运行时目录（cache/sessions/telemetry/plugins 等机器相关数据） |
-| 注意 | 运行时的 `~/.claude.json` 已由 `opencode/` 包管理 |
+| 注意 | 运行时的 `~/.claude.json` 保留在本机，不纳入 Stow |
 
 #### `opencode/` — OpenCode 配置
 | 元数据 | 值 |
 |--------|-----|
-| 部署路径 | `~/.claude.json` → `dotfiles/opencode/.claude.json` |
-| | `~/.config/opencode/opencode.jsonc` → `dotfiles/opencode/.config/opencode/opencode.jsonc` |
+| 部署路径 | `~/.config/opencode/opencode.jsonc` → `dotfiles/opencode/.config/opencode/opencode.jsonc` |
 | 用途 | AI 编码助手配置 + 模型路由 |
 | 技术要点 | Zen Proxy 免费模型；子智能体路由 |
+
+运行态的 `~/.claude.json` 不纳入 Stow，也不复制到仓库。
+
+### 🩺 系统控制面
+
+#### `local-bin/` — dotfiles CLI
+| 元数据 | 值 |
+|--------|-----|
+| 部署路径 | `~/.local/bin/dotfiles` → `dotfiles/local-bin/.local/bin/dotfiles` |
+| 用途 | 从任意目录调用 inventory、config、doctor、audit、sync、docs、dry-run cleanup，以及兼容的 `dev` 运行时入口 |
+| 依赖 | `DOTFILES_ROOT`，默认 `~/dotfiles` |
+
+`~/.local/bin/dev` 现在也是 Stow 管理的兼容入口；`dev reset` 只调用 `dotfiles cleanup`，不会删除容器/模型或重启服务。旧版本保留为 `~/.local/bin/dev.legacy-*`，确认无回滚需求后再处理。
+
+### 归档边界
+
+`~/Archives/dotfiles-legacy/20260805` 保存本轮隔离的旧 Colima 数据、无项目归属的 scratch 文件和已迁移的旧方案。归档目录不由 Stow 管理，也不会被 `dotfiles cleanup` 自动删除。
 
 ### 🐙 其他工具
 
